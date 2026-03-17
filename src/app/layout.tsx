@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider, SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -31,13 +31,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="pt-BR">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="pt-BR">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <ClerkProvider>
+          <header>
+            <Show when="signed-out">
+              <SignInButton />
+              <SignUpButton />
+            </Show>
+            <Show when="signed-in">
+              <UserButton />
+            </Show>
+          </header>
           {children}
           <Toaster richColors position="top-right" />
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
