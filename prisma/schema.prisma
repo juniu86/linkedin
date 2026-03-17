@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BirthTimeAccuracy {
+  EXACT
+  APPROXIMATE
+  UNKNOWN
+}
+
+enum ReportType {
+  ESSENTIAL
+  PREMIUM
+  PREMIUM_RELATIONAL
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  MERCADOPAGO
+  STRIPE
+}
+
+enum EventType {
+  RELATIONSHIP_START
+  MARRIAGE
+  SEPARATION
+  CHILD_BIRTH
+  CITY_CHANGE
+  GRADUATION
+  JOB_START
+  JOB_END
+  BUSINESS_OPEN
+  FAMILY_LOSS
+  HEALTH_CRISIS
+  WEALTH_GAIN
+  OTHER
+}
+
+enum ReportTone {
+  SPIRITUAL
+  BALANCED
+  RATIONAL
+}
+
+enum ReportDepth {
+  SUMMARY
+  COMPLETE
+  PREMIUM_DEPTH
+}
+
+model User {
+  id                  String             @id @default(cuid())
+  clerkId             String             @unique
+  fullNameBirth       String
+  currentName         String
+  email               String             @unique
+  phone               String?
+  gender              String?
+  language            String             @default("pt")
+  birthDate           DateTime?
+  birthTime           String?
+  birthTimeAccuracy   BirthTimeAccuracy  @default(UNKNOWN)
+  birthCity           String?
+  birthState          String?
+  birthCountry        String?
+  currentProfession   String?
+  currentCompany      String?
+  relationshipStatus  String?
+  financialStatus     String?
+  goals               String?
+  challenges          String?
+  formDraftJson       Json?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  lifeEvents    LifeEvent[]
+  relatedPeople RelatedPerson[]
+  reports       Report[]
+  payments      Payment[]
+}
+
+model LifeEvent {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType   EventType
+  eventDate   DateTime?
+  title       String
+  description String?
+  impactLevel Int       @default(5)
+  createdAt   DateTime  @default(now())
+}
+
+model RelatedPerson {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  relationType String
+  birthDate    DateTime?
+  birthTime    String?
+  birthCity    String?
+  birthState   String?
+  birthCountry String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+}
+
+model Report {
+  id                String       @id @default(cuid())
+  userId            String
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportType        ReportType
+  status            ReportStatus @default(PENDING)
+  tone              ReportTone   @default(BALANCED)
+  depth             ReportDepth  @default(COMPLETE)
+  includeWeekly     Boolean      @default(true)
+  includeTimeline   Boolean      @default(true)
+  includeRelational Boolean      @default(false)
+  inputSnapshotJson Json?
+  analysisJson      Json?
+  renderedHtml      String?      @db.Text
+  pdfUrl            String?
+  errorMessage      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  payments Payment[]
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportId          String?
+  report            Report?         @relation(fields: [reportId], references: [id])
+  provider          PaymentProvider
+  providerPaymentId String?
+  preferenceId      String?
+  amount            Float
+  currency          String          @default("BRL")
+  status            PaymentStatus   @default(PENDING)
+  productType       ReportType
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
