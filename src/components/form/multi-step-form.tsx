@@ -130,16 +130,11 @@ export function MultiStepForm() {
     }
   };
 
-  const handleNext = async () => {
-    setSaving(true);
-    try {
-      await saveProgress(data);
-      if (step < STEPS.length) {
-        setStep(s => s + 1);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    } finally {
-      setSaving(false);
+  const handleNext = () => {
+    saveProgress(data); // fire-and-forget, não bloqueia navegação
+    if (step < STEPS.length) {
+      setStep(s => s + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
