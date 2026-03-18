@@ -113,6 +113,8 @@ export function MultiStepForm() {
 
   const saveProgress = async (formData: FormData) => {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
       await fetch("/api/user/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -120,7 +122,9 @@ export function MultiStepForm() {
           ...formData,
           formDraftJson: formData,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
     } catch (e) {
       console.error("Failed to save progress:", e);
     }
@@ -128,11 +132,14 @@ export function MultiStepForm() {
 
   const handleNext = async () => {
     setSaving(true);
-    await saveProgress(data);
-    setSaving(false);
-    if (step < STEPS.length) {
-      setStep(s => s + 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      await saveProgress(data);
+      if (step < STEPS.length) {
+        setStep(s => s + 1);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -249,6 +256,7 @@ export function MultiStepForm() {
         {/* Navigation */}
         <div className="flex justify-between mt-12 pt-8 border-t border-[#1a1a1a]">
           <Button
+            type="button"
             variant="outline"
             onClick={handleBack}
             disabled={step === 1}
@@ -260,6 +268,7 @@ export function MultiStepForm() {
 
           {step < STEPS.length ? (
             <Button
+              type="button"
               onClick={handleNext}
               disabled={saving}
               className="bg-[#d4af37] text-black hover:bg-[#c4a030]"
