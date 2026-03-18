@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -106,28 +106,32 @@ export function MultiStepForm() {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormData>(INITIAL_DATA);
   const [saving, setSaving] = useState(false);
+  const saveControllerRef = useRef<AbortController | null>(null);
 
   const updateData = useCallback((updates: Partial<FormData>) => {
     setData(prev => ({ ...prev, ...updates }));
   }, []);
 
-  const saveProgress = async (formData: FormData) => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      await fetch("/api/user/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          formDraftJson: formData,
-        }),
-        signal: controller.signal,
+  const saveProgress = (formData: FormData) => {
+    // Cancela qualquer save anterior em andamento
+    saveControllerRef.current?.abort();
+    const controller = new AbortController();
+    saveControllerRef.current = controller;
+
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    fetch("/api/user/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...formData, formDraftJson: formData }),
+      signal: controller.signal,
+    })
+      .then(() => clearTimeout(timeout))
+      .catch(e => {
+        clearTimeout(timeout);
+        if ((e as Error)?.name !== "AbortError") {
+          console.error("Failed to save progress:", e);
+        }
       });
-      clearTimeout(timeout);
-    } catch (e) {
-      console.error("Failed to save progress:", e);
-    }
   };
 
   const handleNext = () => {
@@ -146,20 +150,24 @@ export function MultiStepForm() {
   };
 
   const handleSubmit = async () => {
+    // Cancela qualquer save em background antes de salvar definitivamente
+    saveControllerRef.current?.abort();
+    saveControllerRef.current = null;
+
     setSaving(true);
     try {
       // Save final profile
       const profileRes = await fetch("/api/user/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          lifeEvents: data.lifeEvents,
-          relatedPeople: data.relatedPeople,
-        }),
+        body: JSON.stringify({ ...data, formDraftJson: data }),
       });
 
-      if (!profileRes.ok) throw new Error("Failed to save profile");
+      if (!profileRes.ok) {
+        const errBody = await profileRes.json().catch(() => null);
+        console.error("Profile save failed:", profileRes.status, errBody);
+        throw new Error("Failed to save profile");
+      }
 
       // Create report
       const reportRes = await fetch("/api/reports", {
